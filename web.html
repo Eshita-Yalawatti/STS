@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Speech Translation</title>
+</head>
+<body>
+    <h1>Live Speech Translator</h1>
+    <button onclick="startRecording()">Start</button>
+    <button onclick="stopRecording()">Stop</button>
+    <p id="transcribedText"></p>
+    <audio id="audioPlayer" controls autoplay></audio>
+
+    <script>
+        let mediaRecorder;
+        let socket;
+
+        async function startRecording() {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            socket = new WebSocket("wss://your-backend-url/transcribe");
+
+            mediaRecorder.ondataavailable = event => {
+                if (socket.readyState === WebSocket.OPEN) {
+                    socket.send(event.data);  // Send audio chunk
+                }
+            };
+
+            socket.onmessage = event => {
+                const data = JSON.parse(event.data);
+                document.getElementById("transcribedText").innerText = "Translated: " + data.text;
+                
+                if (data.audio_url) {
+                    document.getElementById("audioPlayer").src = data.audio_url;
+                }
+            };
+
+            mediaRecorder.start(500);  // Send audio chunks every 500ms
+        }
+
+        function stopRecording() {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+            }
+            if (socket) {
+                socket.close();
+            }
+        }
+    </script>
+</body>
+</html>
